@@ -1,0 +1,6 @@
+{
+  "name": "ZeitGeist - German Work Tracking",
+  "description": "A legally compliant work hours and pay calculator for Germany, implementing ArbZG, BUrlG, and MiLoG.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["Time Tracking", "Payroll Calculation", "Compliance Monitoring"]
+}

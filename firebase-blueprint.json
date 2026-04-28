@@ -1,0 +1,85 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "User Profile",
+      "description": "Stores user configuration and employment details",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "displayName": { "type": "string" },
+        "state": { "type": "string", "enum": ["BW", "BY", "BE", "BB", "HB", "HH", "HE", "MV", "NI", "NW", "RP", "SL", "SN", "ST", "SH", "TH"] },
+        "hourlyRate": { "type": "number" },
+        "weeklyContractHours": { "type": "number" },
+        "vacationDaysPerYear": { "type": "number" },
+        "role": { "type": "string", "enum": ["admin", "employee"] }
+      },
+      "required": ["uid", "email", "state", "hourlyRate", "role"]
+    },
+    "TimeLog": {
+      "title": "Time Log",
+      "description": "A single entry of work, sick leave, or vacation",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
+        "startTime": { "type": "string" },
+        "endTime": { "type": "string" },
+        "breakMinutes": { "type": "number" },
+        "type": { "type": "string", "enum": ["work", "sick", "vacation", "holiday"] },
+        "comment": { "type": "string" },
+        "isComplianceViolation": { "type": "boolean" },
+        "violationDetails": { "type": "array", "items": { "type": "string" } },
+        "createdAt": { "type": "number" },
+        "updatedAt": { "type": "number" }
+      },
+      "required": ["userId", "date", "type", "createdAt", "updatedAt"]
+    },
+    "AppSettings": {
+      "title": "App Settings",
+      "description": "Global configuration for the application",
+      "type": "object",
+      "properties": {
+        "minWage": { "type": "number" },
+        "overtimeLimitDaily": { "type": "number" },
+        "standardWorkDay": { "type": "number" },
+        "restPeriodMin": { "type": "number" }
+      }
+    },
+    "ScheduledShift": {
+      "title": "Scheduled Shift",
+      "description": "Planned future work shifts",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "date": { "type": "string" },
+        "startTime": { "type": "string" },
+        "endTime": { "type": "string" },
+        "notes": { "type": "string" },
+        "sector": { "type": "string" },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["userId", "date", "startTime", "endTime"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "User profile data"
+    },
+    "/logs/{logId}": {
+      "schema": "TimeLog",
+      "description": "Work and leave logs"
+    },
+    "/schedules/{shiftId}": {
+      "schema": "ScheduledShift",
+      "description": "Upcoming planned shifts"
+    },
+    "/settings/global": {
+      "schema": "AppSettings",
+      "description": "Global application configuration"
+    }
+  }
+}
