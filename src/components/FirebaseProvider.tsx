@@ -25,30 +25,70 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Safety net: ensure loading screen clears even if Firebase hangs
+    const safetyTimeout = setTimeout(() => {
+      setLoading(false);
+    }, 10000);
+
+    let unsubscribeProfile: (() => void) | null = null;
+    
+    // Test basic connection
     testConnection();
+
     const unsubscribeAuth = onAuthStateChanged(auth, async (u) => {
       setUser(u);
+      
+      if (unsubscribeProfile) {
+        unsubscribeProfile();
+        unsubscribeProfile = null;
+      }
+
       if (u) {
-        // Listen for profile changes
-        const unsubscribeProfile = onSnapshot(doc(db, 'users', u.uid), (docSnap) => {
+        const profileRef = doc(db, 'users', u.uid);
+        
+        // Initial setup for new users (Fire and forget, don't block the listener)
+        getDoc(profileRef).then(async (snap) => {
+          if (!snap.exists()) {
+            const { setDoc } = await import('firebase/firestore');
+            await setDoc(profileRef, {
+              uid: u.uid,
+              email: u.email || '',
+              displayName: u.displayName || 'Technician',
+              state: 'BE',
+              hourlyRate: 15.00,
+              weeklyContractHours: 40,
+              vacationDaysPerYear: 28,
+              role: u.email === 'dadakhalander34@gmail.com' ? 'admin' : 'employee',
+              createdAt: Date.now()
+            });
+          }
+        }).catch(err => console.error("Profile check failed:", err));
+
+        // Persistent listener
+        unsubscribeProfile = onSnapshot(profileRef, (docSnap) => {
           if (docSnap.exists()) {
             setProfile(docSnap.data() as UserProfile);
           } else {
             setProfile(null);
           }
-           setLoading(false);
+          setLoading(false);
         }, (error) => {
-          console.error("Profile onSnapshot error:", error);
+          if (auth.currentUser) {
+            console.error("Profile onSnapshot error:", error);
+          }
           setLoading(false);
         });
-        return () => unsubscribeProfile();
       } else {
         setProfile(null);
         setLoading(false);
       }
     });
 
-    return () => unsubscribeAuth();
+    return () => {
+      clearTimeout(safetyTimeout);
+      unsubscribeAuth();
+      if (unsubscribeProfile) unsubscribeProfile();
+    };
   }, []);
 
   return (

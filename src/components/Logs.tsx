@@ -128,8 +128,22 @@ export function Logs() {
             >
               <div className="flex items-center gap-8 w-full sm:w-auto">
                 <div className="text-center min-w-[72px] bg-white/5 p-4 rounded-3xl border border-white/10 shadow-inner group-hover:bg-white/10 transition-colors">
-                  <p className="text-2xl font-black text-white leading-none font-mono">{format(parseISO(log.date), 'dd')}</p>
-                  <p className="text-[10px] text-white/40 uppercase font-black tracking-widest mt-2">{format(parseISO(log.date), 'MMM')}</p>
+                  <p className="text-2xl font-black text-white leading-none font-mono">
+                    {(() => {
+                      try {
+                        const d = parseISO(log.date);
+                        return isNaN(d.getTime()) ? '??' : format(d, 'dd');
+                      } catch (e) { return '??'; }
+                    })()}
+                  </p>
+                  <p className="text-[10px] text-white/40 uppercase font-black tracking-widest mt-2">
+                    {(() => {
+                      try {
+                        const d = parseISO(log.date);
+                        return isNaN(d.getTime()) ? '???' : format(d, 'MMM');
+                      } catch (e) { return '???'; }
+                    })()}
+                  </p>
                 </div>
                 
                 <div className="space-y-3 flex-1 min-w-0 text-left">
@@ -162,7 +176,19 @@ export function Logs() {
                 <div className="text-left sm:text-right space-y-1">
                   <p className="text-[9px] font-black text-white/20 uppercase tracking-[0.3em]">Quantum Duration</p>
                   <p className="text-xl font-black text-white font-mono group-hover:molten-gradient-text transition-all tracking-tighter">
-                    {log.type === 'work' ? `${((differenceInHours(new Date(`1970-01-01T${log.endTime}`), new Date(`1970-01-01T${log.startTime}`)) * 60 - log.breakMinutes) / 60).toFixed(1)}H` : '8.0H'}
+                    {(() => {
+                      if (log.type !== 'work') return '8.0H';
+                      if (!log.startTime || !log.endTime) return '0.0H';
+                      try {
+                        const startStr = log.startTime.includes(':') ? log.startTime : '00:00';
+                        const endStr = log.endTime.includes(':') ? log.endTime : '00:00';
+                        const start = new Date(`1970-01-01T${startStr}:00`);
+                        const end = new Date(`1970-01-01T${endStr}:00`);
+                        if (isNaN(start.getTime()) || isNaN(end.getTime())) return '0.0H';
+                        const diffMinutes = (end.getTime() - start.getTime()) / 60000;
+                        return `${((diffMinutes - log.breakMinutes) / 60).toFixed(1)}H`;
+                      } catch (e) { return '0.0H'; }
+                    })()}
                   </p>
                 </div>
                 

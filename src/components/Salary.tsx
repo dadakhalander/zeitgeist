@@ -116,10 +116,16 @@ export function Salary() {
       projects[pName].taxFree += taxFree;
       
       if (log.startTime && log.endTime) {
-        const start = parseISO(`2000-01-01T${log.startTime}`);
-        const end = parseISO(`2000-01-01T${log.endTime}`);
-        const mins = (end.getTime() - start.getTime()) / (1000 * 60) - (log.breakMinutes || 0);
-        projects[pName].hours += mins / 60;
+        try {
+          const startStr = log.startTime.includes(':') ? log.startTime : '00:00';
+          const endStr = log.endTime.includes(':') ? log.endTime : '00:00';
+          const start = parseISO(`2000-01-01T${startStr}`);
+          const end = parseISO(`2000-01-01T${endStr}`);
+          if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
+            const mins = (end.getTime() - start.getTime()) / (1000 * 60) - (log.breakMinutes || 0);
+            projects[pName].hours += mins / 60;
+          }
+        } catch (e) { /* skip malformed */ }
       }
     });
     return Object.entries(projects).map(([name, data]) => ({ name, ...data }));

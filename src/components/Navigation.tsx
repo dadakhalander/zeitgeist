@@ -4,7 +4,7 @@
  */
 
 import React, { useState } from 'react';
-import { Clock, BarChart3, Settings, LogOut, User as UserIcon, Wallet, Calendar, Menu, X } from 'lucide-react';
+import { Clock, BarChart3, Settings, LogOut, User as UserIcon, Wallet, Calendar, Menu, X, FileText } from 'lucide-react';
 import { logout } from '../lib/firebase';
 import { useAuth } from './FirebaseProvider';
 import { motion, AnimatePresence } from 'motion/react';
@@ -23,6 +23,7 @@ export function Navigation({ activeTab, setActiveTab }: NavProps) {
     { id: 'logs', label: 'Time Logs', icon: Clock },
     { id: 'schedule', label: 'Schedule', icon: Calendar },
     { id: 'salary', label: 'Salary', icon: Wallet },
+    { id: 'payslips', label: 'Payslips', icon: FileText },
     { id: 'settings', label: 'Settings', icon: Settings },
   ];
 

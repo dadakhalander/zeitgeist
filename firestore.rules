@@ -1,12 +1,18 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    // Default Deny
     match /{document=**} {
       allow read, write: if false;
     }
 
+    // Global Helpers
     function isSignedIn() {
       return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
     }
 
     function isAdmin() {
@@ -17,34 +23,49 @@ service cloud.firestore {
       return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); 
     }
 
-    function isValidShift(data) {
-      return data.userId == request.auth.uid 
-        && data.date is string 
-        && data.startTime is string 
-        && data.endTime is string
-        && (data.sector == null || data.sector is string)
-        && data.keys().hasAll(['userId', 'date', 'startTime', 'endTime', 'createdAt']);
-    }
-
+    // --- Users Collection ---
     match /users/{userId} {
-      allow read, write: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+      function isValidUser(data) {
+        return data.uid == request.auth.uid
+          && data.email is string
+          && data.displayName is string
+          && data.state is string
+          && data.hourlyRate is number
+          && data.weeklyContractHours is number
+          && data.vacationDaysPerYear is number
+          && data.role in ['admin', 'employee']
+          && data.keys().hasAll(['uid', 'email', 'displayName', 'state', 'hourlyRate', 'weeklyContractHours', 'vacationDaysPerYear', 'role', 'createdAt']);
+      }
+
+      allow get: if isOwner(userId) || isAdmin();
+      allow create: if isOwner(userId) && isValidUser(request.resource.data);
+      allow update: if (isOwner(userId) || isAdmin()) && isValidUser(request.resource.data) 
+        && (isAdmin() || request.resource.data.role == resource.data.role); // Owner cannot change their own role
     }
 
+    // --- Logs Collection ---
     match /logs/{logId} {
-      allow read, delete: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
       allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
-      allow update: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow update, delete: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
     }
 
+    // --- Schedules Collection ---
     match /schedules/{shiftId} {
-      allow read, delete: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
-      allow create: if isSignedIn() && isValidShift(request.resource.data);
-      allow update: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin()) && isValidShift(request.resource.data);
+      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create, update, delete: if isSignedIn() && (request.resource.data.userId == request.auth.uid || isAdmin());
     }
 
-    match /settings/{docId} {
-      allow read: if isSignedIn();
-      allow write: if isAdmin();
+    // --- Payslips Collection ---
+    match /payslips/{payslipId} {
+      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+    }
+
+    // --- Internal Connection Test ---
+    match /test/connection {
+      allow read: if true;
     }
   }
 }

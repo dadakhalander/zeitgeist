@@ -49,20 +49,40 @@ export function Dashboard() {
   };
 
   const monthLogs = logs.filter(l => {
-    const d = parseISO(l.date);
-    return d.getMonth() === viewDate.getMonth() && d.getFullYear() === viewDate.getFullYear();
+    if (!l.date) return false;
+    try {
+      const d = parseISO(l.date);
+      if (isNaN(d.getTime())) return false;
+      return d.getMonth() === viewDate.getMonth() && d.getFullYear() === viewDate.getFullYear();
+    } catch (e) {
+      return false;
+    }
   });
 
   // Prepare chart data
   const daysInMonth = eachDayOfInterval(monthInterval);
   const chartData = daysInMonth.map(day => {
-    const dayLog = monthLogs.find(l => isSameDay(parseISO(l.date), day));
+    const dayLog = monthLogs.find(l => {
+      try {
+        const d = parseISO(l.date);
+        return !isNaN(d.getTime()) && isSameDay(d, day);
+      } catch (e) {
+        return false;
+      }
+    });
+
     let hours = 0;
     if (dayLog) {
       if (dayLog.type === 'work' && dayLog.startTime && dayLog.endTime) {
-        const start = new Date(`1970-01-01T${dayLog.startTime}:00`);
-        const end = new Date(`1970-01-01T${dayLog.endTime}:00`);
-        hours = ((end.getTime() - start.getTime()) / 60000 - dayLog.breakMinutes) / 60;
+        try {
+          const start = new Date(`1970-01-01T${dayLog.startTime}:00`);
+          const end = new Date(`1970-01-01T${dayLog.endTime}:00`);
+          if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
+            hours = ((end.getTime() - start.getTime()) / 60000 - dayLog.breakMinutes) / 60;
+          }
+        } catch (e) {
+          console.error("Date calc error:", e);
+        }
       } else if (dayLog.type !== 'work') {
         hours = 8; // Standard credit
       }
@@ -91,10 +111,15 @@ export function Dashboard() {
     }
     
     if (!log.startTime || !log.endTime) return acc;
-    const start = new Date(`1970-01-01T${log.startTime}:00`);
-    const end = new Date(`1970-01-01T${log.endTime}:00`);
-    let diff = (end.getTime() - start.getTime()) / 60000;
-    return acc + (diff - log.breakMinutes);
+    try {
+      const start = new Date(`1970-01-01T${log.startTime.includes(':') ? log.startTime : '00:00'}:00`);
+      const end = new Date(`1970-01-01T${log.endTime.includes(':') ? log.endTime : '00:00'}:00`);
+      if (isNaN(start.getTime()) || isNaN(end.getTime())) return acc;
+      let diff = (end.getTime() - start.getTime()) / 60000;
+      return acc + (diff - log.breakMinutes);
+    } catch (e) {
+      return acc;
+    }
   }, 0);
 
   const totalPayBreakdown = monthLogs.reduce((acc, log) => {
@@ -277,8 +302,22 @@ export function Dashboard() {
                   <div key={log.id} className="glass-card p-6 flex items-center justify-between group hover:bg-white/5 border border-white/10 transition-all">
                     <div className="flex items-center gap-6">
                       <div className="text-center min-w-[60px] bg-white/5 p-3 rounded-2xl border border-white/10">
-                        <p className="text-xl font-black text-white leading-none">{format(parseISO(log.date), 'dd')}</p>
-                        <p className="text-[9px] text-white/40 uppercase font-black mt-1">{format(parseISO(log.date), 'MMM')}</p>
+                        <p className="text-xl font-black text-white leading-none">
+                          {(() => {
+                            try {
+                              const d = parseISO(log.date);
+                              return isNaN(d.getTime()) ? '??' : format(d, 'dd');
+                            } catch (e) { return '??'; }
+                          })()}
+                        </p>
+                        <p className="text-[9px] text-white/40 uppercase font-black mt-1">
+                          {(() => {
+                            try {
+                              const d = parseISO(log.date);
+                              return isNaN(d.getTime()) ? '???' : format(d, 'MMM');
+                            } catch (e) { return '???'; }
+                          })()}
+                        </p>
                       </div>
                       <div className="space-y-2 text-left">
                         <p className="text-sm font-black text-white tracking-widest font-mono uppercase">

@@ -16,6 +16,7 @@ import { Dashboard } from './components/Dashboard';
 import { Logs } from './components/Logs';
 import { Schedule } from './components/Schedule';
 import { Salary } from './components/Salary';
+import { Payslips } from './components/Payslips';
 import { Settings } from './components/Settings';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -56,6 +57,7 @@ function AppContent() {
             {activeTab === 'logs' && <Logs />}
             {activeTab === 'schedule' && <Schedule />}
             {activeTab === 'salary' && <Salary />}
+            {activeTab === 'payslips' && <Payslips />}
             {activeTab === 'settings' && <Settings />}
           </motion.div>
         </AnimatePresence>
