@@ -12,7 +12,7 @@ import {
 } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { useAuth } from './FirebaseProvider';
-import { ScheduledShift } from '../types';
+import { ScheduledShift, TimeLog, LogType } from '../types';
 import { 
   Calendar as CalendarIcon, 
   Plus, 
@@ -23,7 +23,8 @@ import {
   Briefcase,
   Zap,
   Edit3,
-  X
+  X,
+  Activity
 } from 'lucide-react';
 import { 
   format, 
@@ -40,6 +41,7 @@ export function Schedule() {
   const { user } = useAuth();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [shifts, setShifts] = useState<ScheduledShift[]>([]);
+  const [logs, setLogs] = useState<TimeLog[]>([]);
   const [isAdding, setIsAdding] = useState(false);
   const [editingShiftId, setEditingShiftId] = useState<string | null>(null);
   const [isBulkImport, setIsBulkImport] = useState(false);
@@ -91,6 +93,26 @@ export function Schedule() {
     }, (error) => {
       console.error("Schedule loading error:", error);
       setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+
+    const q = query(
+      collection(db, 'logs'),
+      where('userId', '==', user.uid)
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      setLogs(snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as TimeLog[]);
+    }, (error) => {
+      console.error("Logs sync error in Schedule:", error);
     });
 
     return () => unsubscribe();
@@ -373,7 +395,16 @@ export function Schedule() {
 
       <div className="grid grid-cols-1 md:grid-cols-7 gap-4">
         {weekDays.map((day, idx) => {
-          const dayShifts = shifts.filter(s => isSameDay(parseISO(s.date), day));
+          const dayShifts = shifts.filter(s => {
+            try {
+              return isSameDay(parseISO(s.date), day);
+            } catch (e) { return false; }
+          });
+          const dayLogs = logs.filter(l => {
+            try {
+              return l.type === LogType.WORK && isSameDay(parseISO(l.date), day);
+            } catch (e) { return false; }
+          });
           const isToday = isSameDay(day, new Date());
           
           return (
@@ -382,7 +413,7 @@ export function Schedule() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: idx * 0.05 }}
-              className={`flex flex-col min-h-[300px] glass-card p-6 border-white/5 hover:border-white/20 transition-all ${isToday ? 'bg-white/10 ring-1 ring-white/30' : 'bg-white/5'}`}
+              className={`flex flex-col min-h-[350px] glass-card p-4 border-white/5 hover:border-white/20 transition-all ${isToday ? 'bg-white/10 ring-1 ring-white/30' : 'bg-white/5'}`}
             >
               <div className="text-center mb-6">
                 <p className={`text-[10px] font-black uppercase tracking-[0.2em] mb-2 ${isToday ? 'text-white' : 'text-white/30'}`}>
@@ -394,6 +425,29 @@ export function Schedule() {
               </div>
 
               <div className="flex-1 space-y-4">
+                {/* Logged Activities (Actuals) */}
+                {dayLogs.map(log => (
+                  <div key={log.id} className="group relative bg-emerald-500/10 border border-emerald-500/20 p-4 rounded-2xl hover:bg-emerald-500/20 transition-all">
+                    <div className="flex items-center justify-between mb-2">
+                       <div className="flex items-center gap-2">
+                         <Activity className="w-3 h-3 text-emerald-400" />
+                         <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Logged</span>
+                       </div>
+                    </div>
+                    <div className="flex items-center gap-2 mb-2">
+                       <Clock className="w-3 h-3 text-white/40" />
+                       <span className="text-[10px] font-black text-white font-mono">{log.startTime}—{log.endTime}</span>
+                    </div>
+                    {log.project && (
+                      <div className="flex items-center gap-2">
+                        <Briefcase className="w-3 h-3 text-white/40" />
+                        <span className="text-[9px] font-black text-white/60 uppercase tracking-widest truncate">{log.project}</span>
+                      </div>
+                    )}
+                  </div>
+                ))}
+
+                {/* Planned Shifts */}
                 {dayShifts.map(shift => (
                   <div key={shift.id} className="group relative bg-white/5 border border-white/10 p-4 rounded-2xl hover:bg-white/10 transition-all">
                     <div className="flex items-center gap-2 mb-2">
@@ -425,7 +479,7 @@ export function Schedule() {
                   </div>
                 ))}
                 
-                {dayShifts.length === 0 && (
+                {dayShifts.length === 0 && dayLogs.length === 0 && (
                   <div className="flex flex-col items-center justify-center h-full opacity-10">
                     <Zap className="w-8 h-8" />
                   </div>
